@@ -212,6 +212,16 @@ def base_estimate(ep, p):
         return 0.012 + 0.0012 * limit
     if matches(ep, "technologies"):
         return 0.012
+    if matches(ep, "merchant_amazon_asin", "merchant/amazon/asin"):
+        return 0.0015 if "task_post" in ep else 0.005
+    if matches(ep, "merchant_amazon", "merchant/amazon"):
+        return 0.0015 if "task_post" in ep else 0.0033
+    if matches(ep, "dfs_trends_explore", "dataforseo_trends/explore"):
+        return 0.0012
+    if matches(ep, "dataforseo_trends/merged_data", "dfs_trends_merged"):
+        return 0.006
+    if matches(ep, "dfs_trends", "dataforseo_trends"):
+        return 0.0024
     if matches(ep, "instant_pages", "content_parsing"):
         return 0.00015
     if matches(ep, "lighthouse"):
