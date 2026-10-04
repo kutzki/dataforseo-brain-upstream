@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -96,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
     stale = None if args.template else stale_hook_copy()   # an operator's install, not the template's concern
     if stale:
         errors.append(stale)
+    if not args.template:   # instruction files agents read before calling DataForSEO, outside the vault
+        docs = operator_docs()
+        errors.extend(f"agent instructions: {f}" for f in validate_endpoints.flat_price_claims(vault, files=docs))
+        errors.extend(f"agent instructions: {f}" for f in validate_endpoints.per_row_price_gaps(vault, files=docs))
     if (vault / validate_params.SPEC_REL).exists():
         errors.extend(f"parameter claim: {f}" for f in validate_params.audit(vault))
     for warning in warnings:
@@ -107,6 +112,16 @@ def main(argv: list[str] | None = None) -> int:
 
 
 INSTALLED_GUARD = Path.home() / ".claude" / "hooks" / "dfs_guard.py"
+
+
+def operator_docs(home: Path | None = None) -> list[Path]:
+    """Rules, agent briefs and SEO skills that tell agents how to call DataForSEO. A flat-price claim survived
+    in the spend rule and the guard's own message after the vault was clean (2026-10-04/05)."""
+    home = home or Path(os.environ.get("DFS_OPERATOR_HOME") or Path.home())   # tests point this at a temp dir
+    c = home / ".claude"
+    found = list((c / "rules").glob("dataforseo*.md")) + list((c / "agents").glob("seo-dataforseo*.md"))
+    found += [p for p in (c / "skills").glob("seo*/**/*.md") if "dataforseo" in p.read_text(encoding="utf-8", errors="replace").lower()]
+    return sorted(p for p in found if p.suffix == ".md")
 
 
 def stale_hook_copy(installed: Path = INSTALLED_GUARD) -> str | None:

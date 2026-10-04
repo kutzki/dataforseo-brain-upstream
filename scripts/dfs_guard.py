@@ -293,7 +293,7 @@ def check(tool, inp, session, now, log):
                             "dfs_safety.call('/v3/keywords_data/google_ads/search_volume/live', "
                             "[{'keywords': [...], 'location_code': ..., 'language_code': 'en'}]) returns every keyword.")
         if len(kws) < GOOGLE_ADS_MIN_KEYWORDS and not below_country(p):
-            return "deny", (f"Google Ads search_volume costs a flat $0.09 per call; with {len(kws)} keywords Labs is cheaper. "
+            return "deny", (f"Google Ads search_volume costs a flat $0.09 per call; with {len(kws)} keywords Labs ($0.012 + $0.00012/keyword) is cheaper. "
                             "Use dataforseo_labs_google_keyword_overview ($0.012 + $0.00012/keyword, up to 700 keywords per call). "
                             f"Use Google Ads only for {GOOGLE_ADS_MIN_KEYWORDS}+ keywords in ONE call (max 1,000). Collect all keywords first, then make one call.")
 
@@ -322,7 +322,7 @@ def check(tool, inp, session, now, log):
         return "ask", llm_response_advice(ep, p), patch
 
     if matches(ep, "llm_ment", "llm_mentions"):
-        return "ask", ("LLM Mentions is $0.10 per call, flat. Put several targets in one multi_target call and know which question each call answers."), patch
+        return "ask", ("LLM Mentions is $0.10 per call plus $0.001 per row. Put several targets in one call (connector: ai_opt_llm_ment_cross_agg_metrics, 2-10 targets; REST: multi_target_metrics) and know which question each call answers."), patch
 
     if matches(ep, "historical_rank_overview", "whois"):
         return "ask", f"{ep} costs ~${estimate(ep, p):.2f} per call. Approve if needed.", patch

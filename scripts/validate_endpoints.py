@@ -122,14 +122,11 @@ FLAT_RE = re.compile(r"\bflat\b|regardless of (?:rows|results|the number of rows
 PER_ROW_ACK_RE = re.compile(r"per (?:row|result|keyword returned)|/row|\+ ?\$0\.000|corrected|used to say|said \"flat", re.I)
 
 
-def flat_price_claims(vault):
+def flat_price_claims(vault, files=None):
     """Lines that call a per-row endpoint flat-priced. Labs, listings, backlinks, content analysis and LLM Mentions
     all bill a request fee PLUS a per-row fee; "flat" invites oversized pulls (a note said so until 2026-10-04)."""
     out = []
-    for md in sorted(pathlib.Path(vault).joinpath("wiki").rglob("*.md")):
-        rel = md.relative_to(vault).as_posix()
-        if rel.endswith(("log.md", "lesson-log.md")) or "archive" in rel or "/reports/" in rel:
-            continue
+    for md, rel in _notes(vault, files):
         for no, line in enumerate(md.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if PER_ROW_RE.search(line) and FLAT_RE.search(line) and not PER_ROW_ACK_RE.search(line):
                 out.append(f"{rel}:{no} calls a per-row endpoint flat-priced")
@@ -139,7 +136,19 @@ def flat_price_claims(vault):
 TICKED_EP_RE = re.compile(r"`(?:/v3/)?([a-z0-9_]+(?:/[a-z0-9_]+)+)`")
 
 
-def per_row_price_gaps(vault, prices=None):
+def _notes(vault, files=None):
+    """(path, label) pairs: the vault's wiki notes (minus logs, archives, reports), or an explicit file list."""
+    if files is not None:
+        return [(pathlib.Path(f), str(f)) for f in files]
+    out = []
+    for md in sorted(pathlib.Path(vault).joinpath("wiki").rglob("*.md")):
+        rel = md.relative_to(vault).as_posix()
+        if not (rel.endswith(("log.md", "lesson-log.md")) or "archive" in rel or "/reports/" in rel):
+            out.append((md, rel))
+    return out
+
+
+def per_row_price_gaps(vault, prices=None, files=None):
     """Lines that price an endpoint by the request alone when it also bills per row (whois and historical Labs
     add $0.0012/row, listings $0.00036/row). The table said "$0.012" for listings while a frame pull paid $0.37."""
     path = pathlib.Path(prices) if prices else PRICES
@@ -151,10 +160,7 @@ def per_row_price_gaps(vault, prices=None):
             types.setdefault(e["endpoint"], set()).add(e.get("cost_type"))
     both = {ep for ep, t in types.items() if {"per_request", "per_result"} <= t}
     out = []
-    for md in sorted(pathlib.Path(vault).joinpath("wiki").rglob("*.md")):
-        rel = md.relative_to(vault).as_posix()
-        if rel.endswith(("log.md", "lesson-log.md")) or "archive" in rel or "/reports/" in rel:
-            continue
+    for md, rel in _notes(vault, files):
         for no, line in enumerate(md.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if "$" in line and not PER_ROW_ACK_RE.search(line):
                 out.extend(f"{rel}:{no} prices `{ep}` per request only; it also bills per row"
