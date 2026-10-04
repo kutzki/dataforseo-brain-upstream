@@ -186,6 +186,83 @@ def commit_vault(vault, message):
         print(f"WARNING: vault commit skipped: {exc}", file=sys.stderr)
 
 
+SPEC_COMMITS = "https://api.github.com/repos/dataforseo/OpenApiDocumentation/commits?per_page=1"
+
+
+def spec_check(vault):
+    """Free: is DataForSEO's OpenAPI spec newer than the copy the lint validates against?
+    Returns (report lines, needs_attention). Network trouble is reported, never fatal."""
+    import urllib.request
+    prov = pathlib.Path(vault) / ".raw" / "sources" / "dataforseo-openapi" / "PROVENANCE.json"
+    if not prov.exists():
+        return [], False
+    ours = json.loads(prov.read_text(encoding="utf-8")).get("commit", "")
+    try:
+        req = urllib.request.Request(SPEC_COMMITS, headers={"User-Agent": "dataforseo-brain"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            latest = json.load(resp)[0]
+    except Exception as exc:   # never lose the paid results over a free check
+        return [f"\nOpenAPI spec check skipped: {exc}\n"], False
+    sha, date = latest["sha"], latest["commit"]["committer"]["date"][:10]
+    if ours and sha.startswith(ours):
+        return [f"\nOpenAPI spec: current (commit {ours}).\n"], False
+    return [f"\n**DataForSEO updated its OpenAPI spec** (commit {sha[:12]}, {date}; the vault has {ours or 'none'}). "
+            "Re-download it to `.raw/sources/dataforseo-openapi/`, update PROVENANCE.json, and re-run the lint: "
+            "endpoint and parameter checks still validate against the old copy.\n"], True
+
+
+UPDATES_API = "https://dataforseo.com/wp-json/wp/v2/update?per_page=20&_fields=date,title,link"
+
+
+def changelog_check(vault):
+    """Free: DataForSEO product updates (retirements, price and parameter changes) posted after the
+    changelog note was last checked. Returns (report lines, needs_attention); network trouble is never fatal."""
+    import urllib.request
+    note = pathlib.Path(vault) / "wiki" / "sources" / "dfs-changelog.md"
+    if not note.exists():
+        return [], False
+    m = re.search(r"\*\*Checked:\*\* (\d{4}-\d{2}-\d{2})", note.read_text(encoding="utf-8"))
+    if not m:
+        return [], False
+    checked = m.group(1)
+    try:
+        req = urllib.request.Request(UPDATES_API, headers={"User-Agent": "Mozilla/5.0 (dataforseo-brain)"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            posts = json.load(resp)
+    except Exception as exc:   # never lose the paid results over a free check
+        return [f"\nDataForSEO changelog check skipped: {exc}\n"], False
+    new = [p for p in posts if p.get("date", "")[:10] > checked]
+    if not new:
+        return [f"\nDataForSEO changelog: nothing new since {checked}.\n"], False
+    lines = [f"\n**DataForSEO posted {len(new)} product update(s) since the changelog note was checked ({checked}):**\n"]
+    for p in new:
+        title = re.sub(r"<[^>]+>", "", (p.get("title") or {}).get("rendered", "")).strip()
+        lines.append(f"- {p['date'][:10]}: [{title}]({p.get('link', '')})")
+    lines.append("\nRecord them in `wiki/sources/dfs-changelog.md` and update its **Checked** date.\n")
+    return lines, True
+
+
+def price_check(vault):
+    """Free: refresh the account price table and lint the vault's price claims.
+    Returns (report lines, needs_attention)."""
+    import os
+    import check_prices
+    import refresh_prices
+    os.environ.setdefault("DFS_VAULT", str(vault))
+    try:
+        changed = refresh_prices.main()
+    except (SystemExit, Exception) as exc:   # never lose the paid results over a free check
+        return [f"\n## Price check\n\nPrice refresh failed: {exc}\n"], True
+    drift = check_prices.check(pathlib.Path(vault))
+    lines = ["\n## Price check\n",
+             ("**DataForSEO changed its prices.** A new `live-prices-*.json` was saved; re-run the guard price tests "
+              "and update the notes that quote old prices." if changed else "Prices unchanged since the last table."),
+             ""]
+    if drift:
+        lines += [f"**{len(drift)} note line(s) now disagree with the price table:**", ""] + [f"- {d}" for d in drift[:20]] + [""]
+    return lines, bool(changed or drift)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--vault", type=pathlib.Path, default=DEFAULT_VAULT)
@@ -303,6 +380,14 @@ def main():
         for line in lines:
             fh.write(line + "\n")
 
+    price_lines, price_alert = price_check(args.vault)
+    summary += price_lines
+    spec_lines, spec_alert = spec_check(args.vault)
+    summary += spec_lines
+    price_alert = price_alert or spec_alert
+    log_lines, log_alert = changelog_check(args.vault)
+    summary += log_lines
+    price_alert = price_alert or log_alert
     summary.append(f"\n---\n\nTotal spend this run: **${spent:.3f}**. "
                    f"Series: `_attachments/ai-visibility.jsonl`.\n")
     summary.append("")
@@ -328,6 +413,9 @@ def main():
     if stopped:
         print(f"INCOMPLETE: stopped at the spend cap before {stopped}", file=sys.stderr)
         return 1
+    if price_alert:
+        print("ATTENTION: DataForSEO prices, its OpenAPI spec or its changelog changed, or notes disagree; see the report's Price check section", file=sys.stderr)
+        return 3
     return 0
 
 

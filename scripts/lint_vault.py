@@ -91,6 +91,9 @@ def main(argv: list[str] | None = None) -> int:
     errors.extend(f"costly routing: {f}" for f in validate_endpoints.routing_issues(vault))
     errors.extend(f"unknown item type: {f}" for f in validate_endpoints.item_type_issues(vault))
     errors.extend(f"price model: {f}" for f in validate_endpoints.flat_price_claims(vault))
+    stale = None if args.template else stale_hook_copy()   # an operator's install, not the template's concern
+    if stale:
+        errors.append(stale)
     if (vault / validate_params.SPEC_REL).exists():
         errors.extend(f"parameter claim: {f}" for f in validate_params.audit(vault))
     for warning in warnings:
@@ -99,6 +102,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {error}", file=sys.stderr)
     print("Vault lint passed" if not errors else "Vault lint failed")
     return 1 if errors else 0
+
+
+INSTALLED_GUARD = Path.home() / ".claude" / "hooks" / "dfs_guard.py"
+
+
+def stale_hook_copy(installed: Path = INSTALLED_GUARD) -> str | None:
+    """The guard hook runs from a copy in ~/.claude/hooks; a repo update that isn't copied leaves the old rules live."""
+    repo = Path(__file__).resolve().parent / "dfs_guard.py"
+    if installed.exists() and repo.exists() and installed.read_bytes() != repo.read_bytes():
+        return f"installed guard hook {installed} differs from {repo}: copy the repo version over it"
+    return None
 
 
 def canvas_issues(vault: Path, canvas: Path) -> list[str]:

@@ -39,7 +39,13 @@ def flatten(node, path, rows):
         flatten(value, path + [key], rows)
 
 
-def main() -> None:
+def newest_entries(folder: pathlib.Path):
+    files = sorted(folder.glob("live-prices-*.json"))
+    return json.loads(files[-1].read_text(encoding="utf-8"))["entries"] if files else None
+
+
+def main() -> bool:
+    """Write a dated price table only when prices changed. Returns True if they changed."""
     payload = fetch()
     if payload.get("status_code") != 20000:
         sys.exit(f"user_data failed: {payload.get('status_code')} {payload.get('status_message')}")
@@ -54,10 +60,15 @@ def main() -> None:
         "account_balance_usd": result["money"]["balance"],
         "entries": rows,
     }, indent=2) + "\n"
-    out = pathlib.Path(__file__).resolve().parent.parent / "references" / f"live-prices-{today}.json"
-    out.write_text(body, encoding="utf-8")
+    refs = pathlib.Path(__file__).resolve().parent.parent / "references"
     # The vault's lint (check_prices) and the guard's price test read the vault copy; keep both in step.
     vault_dir = pathlib.Path(os.environ.get("DFS_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault") / "_attachments"
+    previous = newest_entries(vault_dir) if vault_dir.is_dir() else newest_entries(refs)
+    if previous == rows:
+        print(f"prices unchanged since the last table ({len(rows)} entries); nothing written")
+        return False
+    out = refs / f"live-prices-{today}.json"
+    out.write_text(body, encoding="utf-8")
     if vault_dir.is_dir():
         (vault_dir / out.name).write_text(body, encoding="utf-8")
         print(f"also wrote {vault_dir / out.name}")
@@ -71,6 +82,7 @@ def main() -> None:
     print("\ncheapest priced calls:")
     for row in reversed(priced[-8:]):
         print(f"  ${row['cost']:<9} {row['cost_type']:<13} {row['endpoint']}")
+    return True
 
 
 if __name__ == "__main__":
