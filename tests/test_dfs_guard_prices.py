@@ -110,3 +110,9 @@ def test_connector_google_ads_over_ten_keywords_denied():
     inp = {"keywords": ["k%d" % i for i in range(11)], "location_name": "Springfield,Illinois,United States"}
     decision, msg = dfs_guard.check("mcp__x__kw_data_google_ads_search_volume", inp, {}, 0, [])[:2]
     assert decision == "deny" and "REST" in msg
+
+
+def test_google_ads_queued_cheaper_than_live():
+    """Standard-queue Google Ads volume bills $0.06 a task against $0.09 live (30 tasks billed $1.80, 2026-10-04)."""
+    assert dfs_guard.base_estimate("/v3/keywords_data/google_ads/search_volume/task_post", {"keywords": ["a"]}) == 0.06
+    assert dfs_guard.base_estimate("/v3/keywords_data/google_ads/search_volume/live", {"keywords": ["a"]}) == 0.09

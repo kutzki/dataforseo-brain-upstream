@@ -50,7 +50,10 @@ def load_table(path: Path) -> dict[str, dict[str, set[float]]]:
         if len(parts) < 2:
             continue
         kind = "result" if entry.get("cost_type") == "per_result" else "request"
-        for key in {parts[-1], "/".join(parts[-2:])}:
+        keys = {parts[-1], "/".join(parts[-2:])}
+        if parts[0] == "keywords_data" and len(parts) == 2:
+            keys.add("google_ads/" + parts[1])   # the account table drops the engine on Google Ads tasks ($0.06 queued)
+        for key in keys:
             table.setdefault(key, {"request": set(), "result": set()})[kind].add(cost)
     return table
 

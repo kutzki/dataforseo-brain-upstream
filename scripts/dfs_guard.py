@@ -178,7 +178,8 @@ def base_estimate(ep, p):
     if is_free_helper(ep):
         return 0.0
     if matches(ep, "google_ads"):
-        return 0.09 * max(1, math.ceil(n_kw / 1000))
+        per = 0.06 if "task_post" in ep else 0.09     # Standard queue is a third cheaper (measured 2026-10-04)
+        return per * max(1, math.ceil(n_kw / 1000))
     if matches(ep, "keywords_data/bing", "kw_data_bing"):
         return 0.09
     if matches(ep, "top_mentioned_brand_categories"):
