@@ -39,7 +39,7 @@ LIMIT_CAPS = {                      # per-result endpoints; caps keep results re
     "competitors_domain": 50, "serp_competitors": 50, "subdomains": 50, "historical_serps": 20,
     "business_listings_search": 25, "backlinks_referring_domains": 50, "backlinks_backlinks": 50,
     "backlinks_anchors": 50, "backlinks_domain_pages": 50, "backlinks_competitors": 50,
-    "llm_ment_search": 50, "content_analysis_search": 50,
+    "llm_ment_search": 50, "content_analysis_search": 50, "whois_overview": 25,
 }
 AI_ANSWER_KEYS = ("scraper", "llm_response", "llm_responses")   # repeated runs are deliberate (variance)
 LIST_DEFAULT_LIMIT = 100            # what the API returns when limit is omitted
@@ -154,13 +154,26 @@ def estimate(ep, p):
     return cost + 0.00015 * (num(p.get("people_also_ask_click_depth"), 0) or 0)
 
 
+FREE_HELPER_RE = re.compile(r"(?:^|[/_])(?:categories|locations|languages|available_filters|filters|llm_models|loc_and_lang)(?:/[a-z]{2})?$")
+
+
+def is_free_helper(ep):
+    """Lookup lists cost nothing. Paid endpoints also contain these words (categories_for_domain is $0.012 + rows,
+    top_mentioned_brand_categories $0.10 + rows), so match only a path that ENDS in one and isn't a live call."""
+    return "docs_" in ep or (bool(FREE_HELPER_RE.search(ep)) and "/live" not in ep and "brand_categories" not in ep)
+
+
 def base_estimate(ep, p):
     n_kw = len(p.get("keywords") or []) if isinstance(p.get("keywords"), list) else 1
     limit = num(p.get("limit"), LIST_DEFAULT_LIMIT)
-    if matches(ep, "docs_", "locations", "languages", "filters", "llm_models", "categories"):
+    if is_free_helper(ep):
         return 0.0
     if matches(ep, "google_ads"):
         return 0.09 * max(1, math.ceil(n_kw / 1000))
+    if matches(ep, "keywords_data/bing", "kw_data_bing"):
+        return 0.09
+    if matches(ep, "top_mentioned_brand_categories"):
+        return 0.10 + 0.001 * limit
     if matches(ep, "clickstream"):
         return 0.012 + 0.00012 * n_kw if "bulk" in ep else 0.18
     if matches(ep, "llm_ment", "llm_mentions"):
@@ -171,12 +184,21 @@ def base_estimate(ep, p):
         return 0.0012 if "task_post" in ep else 0.004
     if matches(ep, "ai_mode"):
         return 0.0012 if "task_post" in ep else 0.004
+    if matches(ep, "serp_competitors"):          # a Labs endpoint; the SERP rule below would price it at $0.002
+        return 0.012 + 0.00012 * limit
     if matches(ep, "serp_youtube_organic", "serp/youtube/organic"):
         return 0.002 * max(1, math.ceil((num(p.get("block_depth"), 20) or 20) / 20))   # billed per 20 blocks
     if matches(ep, "serp_organic", "serp/", "serp_"):
         return serp_live_cost(math.ceil((num(p.get("depth"), 10) or 10) / 10))
-    if matches(ep, "historical_rank_overview", "whois"):
-        return 0.12 + 0.0012 * min(limit, 10)
+    if matches(ep, "whois"):
+        return 0.12 + 0.0012 * limit          # default 100 rows: $0.24, double the request fee
+    if matches(ep, "historical_bulk_traffic_estimation", "domain_metrics_by_categories"):
+        n = len(p.get("targets") or []) if isinstance(p.get("targets"), list) else limit
+        return 0.12 + 0.0012 * n
+    if matches(ep, "app_listings"):
+        return 0.10 + 0.001 * limit
+    if matches(ep, "historical_rank_overview"):
+        return 0.12 + 0.0012 * 10             # no limit field; one row per month returned
     if matches(ep, "keyword_overview", "bulk_keyword_difficulty", "search_intent", "bulk_search_volume"):
         return 0.012 + 0.00012 * n_kw
     if matches(ep, "labs", "dataforseo_labs"):
@@ -185,7 +207,8 @@ def base_estimate(ep, p):
         return 0.012 + 0.00036 * limit
     if matches(ep, "backlinks", "content_analysis"):
         return 0.024 + 0.000036 * limit
-    if matches(ep, "domains_by_technology", "domains_by_html_terms", "technologies_summary", "aggregation_technologies"):
+    if matches(ep, "domains_by_technology", "domains_by_html_terms", "technologies_summary", "aggregation_technologies",
+               "technology_stats"):
         return 0.012 + 0.0012 * limit
     if matches(ep, "technologies"):
         return 0.012

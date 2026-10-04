@@ -35,13 +35,13 @@ Verified live 2026-09-17. The rise was ~+20%, but **SERP was not included**:
 | `serp/task_post` (Standard Normal) | $0.0006 | **$0.0006** | unchanged |
 | `serp/task_post` (Standard High) | $0.0012 | **$0.0012** | unchanged |
 | `serp/live/advanced` | $0.002 | **$0.002** | unchanged |
-| `dataforseo_labs/*/live` | ~$0.0101 | **$0.012** | +19% |
+| `dataforseo_labs/*/live` | ~$0.0101 | **$0.012 + $0.00012/row** | +19% |
 | `keywords_data/google_ads/search_volume/live` | $0.075 | **$0.09** | +20% |
 | `keywords_data/clickstream_data/*/live` | $0.15 | **$0.18** | +20% |
-| `domain_analytics/whois/overview/live` | $0.101 | **$0.12** | +19% |
+| `domain_analytics/whois/overview/live` | $0.101 | **$0.12 + $0.0012/row** | +19% |
 | `on_page/instant_pages` | $0.000125 | **$0.00015** | +20% |
-| `business_data/business_listings/search/live` | $0.0103 | **$0.012** | +17% |
-| `backlinks/summary/live` | $0.02 | **$0.024** | +20% |
+| `business_data/business_listings/search/live` | $0.0103 | **$0.012 + $0.00036/row** | +17% |
+| `backlinks/summary/live` | $0.02 | **$0.024 + $0.000036/row** | +20% |
 
 ## The cheapest paths (live figures)
 - **SERP tiering is still the biggest single lever.** Standard Normal $0.0006 vs
@@ -64,11 +64,11 @@ Verified live 2026-09-17. The rise was ~+20%, but **SERP was not included**:
 | Endpoint | Cost | Note |
 |---|---|---|
 | `keywords_data/clickstream_data/*/live` | **$0.18/request** | most expensive call in the catalog; 300x a Standard SERP |
-| `domain_analytics/whois/overview/live` | $0.12/request | also `dataforseo_labs/domain_whois_overview/live` |
-| `dataforseo_labs/historical_rank_overview/live` | $0.12/request | historical Labs is 10x normal Labs |
-| `dataforseo_labs/historical_bulk_traffic_estimation/live` | $0.12/request | |
+| `domain_analytics/whois/overview/live` | $0.12/request + $0.0012/row | also `dataforseo_labs/domain_whois_overview/live` |
+| `dataforseo_labs/historical_rank_overview/live` | $0.12/request + $0.0012/row | historical Labs is 10x normal Labs |
+| `dataforseo_labs/historical_bulk_traffic_estimation/live` | $0.12/request + $0.0012/row | |
 | `ai_optimization/llm_mentions/top_pages/live` | $0.10/request | LLM Mentions family is uniformly pricey |
-| `app_data/app_listings/search/live` | $0.10/request | |
+| `app_data/app_listings/search/live` | $0.10/request + $0.001/row | |
 | `serp/ai_summary` | $0.01/result | 16x a Standard SERP; request deliberately |
 
 Setting `include_clickstream_data: true` on a Labs call routes it into the $0.18

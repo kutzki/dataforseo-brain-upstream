@@ -25,8 +25,9 @@ Business Data is DataForSEO's local-SEO and reputation layer. It scrapes Google 
 
 ## What it covers
 - Google: `/v3/business_data/google/my_business_info/task_post` (profile details), `.../my_business_updates/task_post` (posts), `.../reviews/task_post` and `.../extended_reviews/task_post`, `.../questions_and_answers/task_post`, `.../hotel_searches/task_post`, `.../hotel_info/task_post`.
+- Business Listings (still live): `/v3/business_data/business_listings/search/live` (Maps POIs by category) and `.../business_listings/categories_aggregation/live` (aggregated category stats).
 - Third-party reviews: `/v3/business_data/trustpilot/search/task_post` and `.../trustpilot/reviews/task_post`; `/v3/business_data/tripadvisor/search/task_post` and `.../tripadvisor/reviews/task_post`.
-- Live: `/v3/business_data/social_media/pinterest/live` (pin counts per URL); the `social_media` group also exposes `facebook/live` and `reddit/live` (same `targets` pattern, per-URL billing). Plus `/v3/business_data/business_listings/search/live` (Maps POIs by category) and `/v3/business_data/business_listings/categories_aggregation/live` (aggregated category stats).
+- Live: `/v3/business_data/social_media/pinterest/live` (pin counts per URL); the `social_media` group also exposes `facebook/live` and `reddit/live` (same `targets` pattern, per-URL billing).
 
 ## Key parameters / inputs
 | field | notes |

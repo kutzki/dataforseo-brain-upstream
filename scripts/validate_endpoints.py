@@ -28,7 +28,7 @@ RETIRED = {
 
 # Costly endpoints with a cheap substitute. Calling one is allowed but must be
 # a justified choice, not a reflex: google_ads/search_volume was 62% of all
-# attributed spend with an 87% cheaper Labs equivalent.
+# attributed spend with a ~84% cheaper Labs equivalent.
 # See dec-google-ads-vs-labs-keyword-volume.
 COSTLY = {
     "/v3/keywords_data/google_ads/search_volume/live": (
@@ -133,6 +133,56 @@ def flat_price_claims(vault):
         for no, line in enumerate(md.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if PER_ROW_RE.search(line) and FLAT_RE.search(line) and not PER_ROW_ACK_RE.search(line):
                 out.append(f"{rel}:{no} calls a per-row endpoint flat-priced")
+    return out
+
+
+TICKED_EP_RE = re.compile(r"`(?:/v3/)?([a-z0-9_]+(?:/[a-z0-9_]+)+)`")
+
+
+def per_row_price_gaps(vault, prices=None):
+    """Lines that price an endpoint by the request alone when it also bills per row (whois and historical Labs
+    add $0.0012/row, listings $0.00036/row). The table said "$0.012" for listings while a frame pull paid $0.37."""
+    path = pathlib.Path(prices) if prices else PRICES
+    if not path.exists():
+        return []
+    types = {}
+    for e in json.loads(path.read_text(encoding="utf-8"))["entries"]:
+        if e.get("cost", 0) > 0:
+            types.setdefault(e["endpoint"], set()).add(e.get("cost_type"))
+    both = {ep for ep, t in types.items() if {"per_request", "per_result"} <= t}
+    out = []
+    for md in sorted(pathlib.Path(vault).joinpath("wiki").rglob("*.md")):
+        rel = md.relative_to(vault).as_posix()
+        if rel.endswith(("log.md", "lesson-log.md")) or "archive" in rel or "/reports/" in rel:
+            continue
+        for no, line in enumerate(md.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if "$" in line and not PER_ROW_ACK_RE.search(line):
+                out.extend(f"{rel}:{no} prices `{ep}` per request only; it also bills per row"
+                           for ep in TICKED_EP_RE.findall(line) if ep in both)
+    return out
+
+
+RETIRED_CLAIM_RE = re.compile(r"\b(?:retired|deprecated)\b|\bdo(?:n't| not) call\b", re.I)
+
+
+def false_retirements(vault):
+    """Lines that call an endpoint retired or off-limits while the current spec still serves it. A note listed
+    Business Listings search as retired; an agent reading it would have routed around a working, cheap API."""
+    spec_path = pathlib.Path(vault) / SPEC_REL
+    if not spec_path.exists():
+        return []
+    spec = load_spec(spec_path)
+    out = []
+    for md in sorted(pathlib.Path(vault).joinpath("wiki").rglob("*.md")):
+        rel = md.relative_to(vault).as_posix()
+        if rel.endswith(("log.md", "lesson-log.md")) or "archive" in rel:
+            continue
+        for no, line in enumerate(md.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if not RETIRED_CLAIM_RE.search(line):
+                continue
+            out.extend(f"{rel}:{no} calls {ep} retired, but the OpenAPI spec still serves it"
+                       for ep in (e.rstrip("/") for e in ENDPOINT_RE.findall(line))
+                       if ep in spec and ep not in RETIRED and not ep.startswith(tuple(RETIRED_FAMILIES)))
     return out
 
 

@@ -91,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
     errors.extend(f"costly routing: {f}" for f in validate_endpoints.routing_issues(vault))
     errors.extend(f"unknown item type: {f}" for f in validate_endpoints.item_type_issues(vault))
     errors.extend(f"price model: {f}" for f in validate_endpoints.flat_price_claims(vault))
+    errors.extend(f"price model: {f}" for f in validate_endpoints.per_row_price_gaps(vault))
+    errors.extend(f"live endpoint called retired: {f}" for f in validate_endpoints.false_retirements(vault))
     stale = None if args.template else stale_hook_copy()   # an operator's install, not the template's concern
     if stale:
         errors.append(stale)

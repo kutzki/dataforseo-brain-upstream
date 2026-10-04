@@ -47,7 +47,7 @@ This module is brand-mention and sentiment intelligence over a pre-built citatio
 Search returns `total_count`, `items_count`, `offset_token`, and per-citation `type`, `url`, `domain`, `main_domain`, `url_rank`, `domain_rank`, `content_info.title`, `content_info.snippet`, `content_info.sentiment_connotations`, `content_info.connotation_types`, `content_info.rating`, `page_category`, and `fetch_time`. The sentiment object holds `anger`, `happiness`, `love`, `sadness`, `share`, and `fun`; the connotation object holds `positive`, `negative`, and `neutral`. Aggregate endpoints add `top_domains`, `text_categories`, `page_categories`, `page_types`, `countries`, and `languages`; rating distribution adds bucketed `rating_distribution`; trends add a `date` series.
 
 ## Cost & method notes
-- All analysis endpoints are Live; per-request billing. The cost log shows `/v3/content_analysis/search/live` at $0.02015 and `/v3/content_analysis/summary/live` at $0.02003.
+- All analysis endpoints are Live; billed $0.024 per request + $0.000036 per row (2026-10-02 price table). The cost log shows `/v3/content_analysis/search/live` at $0.02015 and `/v3/content_analysis/summary/live` at $0.02003.
 - The `categories`, `filters`, and `id_list` helpers are free.
 - Because the corpus is pre-indexed, costs are flat per request rather than per result; see [[cap-queue-priority-cost-model]].
 
