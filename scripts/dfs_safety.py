@@ -32,7 +32,7 @@ def call(path, payload=None, timeout=60):
     """POST (or GET when payload is None) a /v3 path or full URL; billed calls are logged."""
     login, password = credentials()
     token = base64.b64encode(f"{login}:{password}".encode()).decode()
-    url = path if path.startswith("http") else BASE + path
+    url = path if path.startswith("http") else BASE + "/v3/" + path.lstrip("/").removeprefix("v3/")   # "serp/..." once became host "api.dataforseo.comserp"
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode() if payload is not None else None,

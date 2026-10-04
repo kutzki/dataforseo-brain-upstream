@@ -95,3 +95,18 @@ def test_no_endpoint_underestimated_by_half():
         if dfs_guard.base_estimate("/v3/" + ep, {"limit": 50}) < true / 2:
             low.append(ep)
     assert not low, low
+
+
+def test_google_ads_small_batch_allowed_below_country():
+    """Labs has no city volume; a city-level Google Ads call must not be blocked for being small."""
+    assert dfs_guard.below_country({"location_name": "Springfield,Illinois,United States"})
+    assert dfs_guard.below_country({"location_code": 1014221})
+    assert not dfs_guard.below_country({"location_name": "United States"})
+    assert not dfs_guard.below_country({"location_code": 2840})
+
+
+def test_connector_google_ads_over_ten_keywords_denied():
+    """The connector returns 10 items of a Google Ads call and bills all of it."""
+    inp = {"keywords": ["k%d" % i for i in range(11)], "location_name": "Springfield,Illinois,United States"}
+    decision, msg = dfs_guard.check("mcp__x__kw_data_google_ads_search_volume", inp, {}, 0, [])[:2]
+    assert decision == "deny" and "REST" in msg

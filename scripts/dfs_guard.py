@@ -27,6 +27,7 @@ LOG = os.path.join(STATE, "calls.jsonl")
 VAULT_LOG = os.environ.get("DFS_GUARD_VAULT_LOG") or os.path.join(os.path.expanduser("~"), "Documents", "DataForSEO Brain", "vault", "_attachments", "dfs-calls.jsonl")
 
 CARD = "~/Documents/DataForSEO Brain/vault/wiki/concepts/cap-live-price-table.md"   # cheapest-correct endpoint per job
+CONNECTOR_ADS_ITEMS = 10            # the claude.ai connector's Google Ads tool truncates its result to 10 items
 GOOGLE_ADS_MIN_KEYWORDS = 600       # below this, Labs keyword_overview is cheaper
 RATE_WINDOW_S = 60
 RATE_MAX_GOOGLE_ADS, RATE_MAX_OTHER = 10, 30   # Google Ads is rate-limited at 12/min by DataForSEO
@@ -163,6 +164,14 @@ def is_free_helper(ep):
     return "docs_" in ep or (bool(FREE_HELPER_RE.search(ep)) and "/live" not in ep and "brand_categories" not in ep)
 
 
+def below_country(p):
+    """A city, metro (DMA) or state location. Labs is country-only, so Google Ads is the only source of
+    local volume there and the 600-keyword Labs rule doesn't apply (it blocked a city market scan, 2026-10-04)."""
+    name = str(p.get("location_name") or "")
+    code = p.get("location_code")
+    return "," in name or (isinstance(code, (int, float)) and code >= 10000)   # country codes are 4 digits (US 2840)
+
+
 def base_estimate(ep, p):
     n_kw = len(p.get("keywords") or []) if isinstance(p.get("keywords"), list) else 1
     limit = num(p.get("limit"), LIST_DEFAULT_LIMIT)
@@ -277,7 +286,12 @@ def check(tool, inp, session, now, log):
 
     if matches(ep, "google_ads_search_volume", "google_ads/search_volume"):
         kws = p.get("keywords") if isinstance(p.get("keywords"), list) else []
-        if len(kws) < GOOGLE_ADS_MIN_KEYWORDS:
+        if "kw_data_google_ads_search_volume" in ep and len(kws) > CONNECTOR_ADS_ITEMS:
+            return "deny", (f"The connector's Google Ads tool returns only {CONNECTOR_ADS_ITEMS} of the {len(kws)} keywords "
+                            "but bills the whole call (measured 2026-10-04: 95 sent, 10 back). Use REST: "
+                            "dfs_safety.call('/v3/keywords_data/google_ads/search_volume/live', "
+                            "[{'keywords': [...], 'location_code': ..., 'language_code': 'en'}]) returns every keyword.")
+        if len(kws) < GOOGLE_ADS_MIN_KEYWORDS and not below_country(p):
             return "deny", (f"Google Ads search_volume costs a flat $0.09 per call; with {len(kws)} keywords Labs is cheaper. "
                             "Use dataforseo_labs_google_keyword_overview ($0.012 + $0.00012/keyword, up to 700 keywords per call). "
                             f"Use Google Ads only for {GOOGLE_ADS_MIN_KEYWORDS}+ keywords in ONE call (max 1,000). Collect all keywords first, then make one call.")
