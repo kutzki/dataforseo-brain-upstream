@@ -90,7 +90,7 @@ def test_no_endpoint_underestimated_by_half():
         if not ep.endswith(("live", "live/advanced", "task_post")):
             continue
         if ep.startswith("keywords_data/") and ep.endswith("task_post") and ep.count("/") == 2:
-            continue   # the table's engine-less shorthand for google_ads tasks ($0.06); real paths name the engine
+            ep = ep.replace("keywords_data/", "keywords_data/google_ads/")   # the table drops the engine on Google Ads tasks
         true = r.get("per_request", 0) + r.get("per_result", 0) * (50 if r.get("per_request") else 1)
         if dfs_guard.base_estimate("/v3/" + ep, {"limit": 50}) < true / 2:
             low.append(ep)
