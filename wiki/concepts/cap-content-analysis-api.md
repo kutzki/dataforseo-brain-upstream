@@ -5,7 +5,7 @@ domain: dataforseo
 subdomain: content-analysis
 status: stable
 created: 2026-06-26
-updated: 2026-06-26
+updated: 2026-10-02
 tags: [dataforseo, content-analysis, sentiment]
 related:
   - "[[cap-labs-market-analysis]]"
@@ -17,6 +17,8 @@ related:
 # Content Analysis API (Capability)
 
 > The Content Analysis API searches a global citation database of web mentions for a keyword or category, then returns the citations, their sentiment and rating distributions, and how mention volume and phrasing trend over time. Sits under [[index|DataForSEO Brain]] -> [[concepts/_index|Concepts]].
+
+> **Caution (2026-09-18 run):** counts are text matches, not citations; generic brand names collide (six-figure false counts). Use exact phrases, domain filters and a `limit`.
 
 ## Overview
 This module is brand-mention and sentiment intelligence over a pre-built citation corpus, aggregating content from news sites, ecommerce, blogs, forums, and organization pages. You query it like a search engine for mentions: give it a keyword (or a category code) and it returns every place that term is cited, each scored for sentiment and connotation, plus aggregate summaries, rating distributions, and time-series trends. All endpoints are Live/synchronous POST calls under `/v3/content_analysis/{function}/live`; there is no task queue. It is the listening layer for reputation tracking and content-gap research.
