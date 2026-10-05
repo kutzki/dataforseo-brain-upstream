@@ -62,7 +62,7 @@ def main() -> bool:
     }, indent=2) + "\n"
     refs = pathlib.Path(__file__).resolve().parent.parent / "references"
     # The vault's lint (check_prices) and the guard's price test read the vault copy; keep both in step.
-    vault_dir = pathlib.Path(os.environ.get("DFS_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault") / "_attachments"
+    vault_dir = pathlib.Path(os.environ.get("DFS_BRAIN_VAULT") or os.environ.get("DFS_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault") / "_attachments"
     previous = newest_entries(vault_dir) if vault_dir.is_dir() else newest_entries(refs)
     if previous == rows:
         print(f"prices unchanged since the last table ({len(rows)} entries); nothing written")

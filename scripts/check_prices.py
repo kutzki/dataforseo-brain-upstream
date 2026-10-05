@@ -12,6 +12,7 @@ sources, archives) and the price table note that compares old and new.
 Exit 0 = no drift, 1 = drift found.
 """
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -19,7 +20,7 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_VAULT = Path.home() / "Documents" / "DataForSEO Brain" / "vault"
+DEFAULT_VAULT = Path(os.environ.get("DFS_BRAIN_VAULT") or Path.home() / "Documents" / "DataForSEO Brain" / "vault")
 SKIP_PARTS = {"reports", "sources", ".raw"}
 SKIP_NAMES = {"log.md", "lesson-log.md", "cap-live-price-table.md"}
 SKIP_STEM_PREFIXES = ("hot-archive", "reference-hot")

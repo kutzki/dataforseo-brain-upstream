@@ -7,7 +7,7 @@ SERP call per probe question in the client's "probes" list ($0.004 each; skip wi
 _attachments/ai-visibility.jsonl and writes a dated summary into wiki/reports/.
 Reports movement against the previous run once a series exists.
 """
-import argparse, datetime, json, pathlib, re, subprocess, sys
+import argparse, datetime, json, os, pathlib, re, subprocess, sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import dfs_safety
@@ -19,7 +19,7 @@ AI_MODE_COST = 0.004   # billed per live call, measured 2026-10-02 (the price ta
 RANK_URL = "https://api.dataforseo.com/v3/serp/google/organic/live/advanced"
 RANK_DEPTH = 20        # pages one and two; billed per 10 results
 RANK_COST = 0.002 + 0.0015 * (RANK_DEPTH // 10 - 1)   # extra pages bill $0.0015 (measured 10-03)
-DEFAULT_VAULT = pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault"
+DEFAULT_VAULT = pathlib.Path(os.environ.get("DFS_BRAIN_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault")
 
 
 def post(payload, url=URL):

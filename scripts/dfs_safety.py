@@ -15,8 +15,7 @@ BASE = "https://api.dataforseo.com"
 USER_DATA = "/v3/appendix/user_data"
 LLM_LOCATIONS = "/v3/ai_optimization/llm_mentions/locations_and_languages"
 # Same file the MCP guard hook writes, so MCP and REST spend sit in one record.
-VAULT_LOG = os.environ.get("DFS_GUARD_VAULT_LOG") or os.path.join(
-    os.path.expanduser("~"), "Documents", "DataForSEO Brain", "vault", "_attachments", "dfs-calls.jsonl")
+VAULT_LOG = os.environ.get("DFS_GUARD_VAULT_LOG") or os.path.join(os.environ.get("DFS_BRAIN_VAULT") or os.path.join(os.path.expanduser("~"), "Documents", "DataForSEO Brain", "vault"), "_attachments", "dfs-calls.jsonl")
 
 
 def credentials():

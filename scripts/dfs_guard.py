@@ -24,7 +24,7 @@ import time
 
 STATE = os.environ.get("DFS_GUARD_STATE") or os.path.join(os.path.expanduser("~"), ".claude", "dfs-guard")
 LOG = os.path.join(STATE, "calls.jsonl")
-VAULT_LOG = os.environ.get("DFS_GUARD_VAULT_LOG") or os.path.join(os.path.expanduser("~"), "Documents", "DataForSEO Brain", "vault", "_attachments", "dfs-calls.jsonl")
+VAULT_LOG = os.environ.get("DFS_GUARD_VAULT_LOG") or os.path.join(os.environ.get("DFS_BRAIN_VAULT") or os.path.join(os.path.expanduser("~"), "Documents", "DataForSEO Brain", "vault"), "_attachments", "dfs-calls.jsonl")
 
 CARD = "~/Documents/DataForSEO Brain/vault/wiki/concepts/cap-live-price-table.md"   # cheapest-correct endpoint per job
 CONNECTOR_ADS_ITEMS = 10            # the claude.ai connector's Google Ads tool truncates its result to 10 items

@@ -11,6 +11,7 @@ Ground truth: .raw/sources/dataforseo-openapi/openapi_specification.yaml.
 Exit 0 = clean, 1 = findings.
 """
 from __future__ import annotations
+import os
 
 import argparse
 import re
@@ -21,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from validate_endpoints import ENDPOINT_RE, SPEC_REL, normalise, resolve  # noqa: E402
 
-DEFAULT_VAULT = Path.home() / "Documents" / "DataForSEO Brain" / "vault"
+DEFAULT_VAULT = Path(os.environ.get("DFS_BRAIN_VAULT") or Path.home() / "Documents" / "DataForSEO Brain" / "vault")
 SECTION_RE = re.compile(r"^## Key parameters.*?$(.*?)(?=^## )", re.M | re.S)
 FIELD_RE = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*$")
 # response/envelope words that notes list alongside inputs; not request fields

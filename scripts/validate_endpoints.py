@@ -7,11 +7,12 @@ table so legacy-but-billable endpoints are reported rather than failed.
 
 Exit 0 = clean, 1 = unknown endpoints referenced.
 """
+import os
 import argparse, json, pathlib, re, sys
 
-DEFAULT_VAULT = pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault"
+DEFAULT_VAULT = pathlib.Path(os.environ.get("DFS_BRAIN_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault")
 SPEC_REL = pathlib.Path(".raw/sources/dataforseo-openapi/openapi_specification.yaml")
-_PRICE_DIRS = (pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault" / "_attachments",
+_PRICE_DIRS = (DEFAULT_VAULT / "_attachments",
                pathlib.Path(__file__).resolve().parent.parent / "references")
 PRICES = max((f for d in _PRICE_DIRS if d.is_dir() for f in d.glob("live-prices-*.json")),
              key=lambda f: f.name, default=pathlib.Path("missing-live-prices.json"))   # newest table wins
