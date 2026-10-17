@@ -37,6 +37,11 @@ class OutOfBalance(RuntimeError):
 
 
 REPEAT_BLOCK_S = 3600
+EXPLORE_ENDPOINTS = ("keyword_ideas", "keyword_suggestions", "related_keywords")
+EXPLORE_MAX_ROWS = 100
+QUEUEABLE = ("serp/google/organic/live", "serp/google/ai_mode/live", "llm_scraper/live")
+QUEUE_NUDGE_AT = 5
+_live_counts: dict = {}
 _run_spent = 0.0      # actual cost of REST calls made by this process
 
 
@@ -93,6 +98,11 @@ def rest_guard(endpoint, payload, confirm_cost=False, allow_repeat=False, now=No
             print(f"dfs_safety: {endpoint}: {reason}", file=sys.stderr)
         if "depth" in patch and "depth" not in task:
             task = dict(task, depth=patch["depth"])   # API default is 100 results = 10 billed pages
+        if (g.matches(endpoint, *EXPLORE_ENDPOINTS) and (g.num(task.get("limit"), 100) or 100) > EXPLORE_MAX_ROWS
+                and not confirm_cost):
+            raise Blocked(f"{endpoint}: limit={task.get('limit')} on an exploration endpoint bills every row "
+                          f"($0.00012 each); {EXPLORE_MAX_ROWS} is plenty to find ideas (Sept and Oct runs paid for "
+                          "340-500 rows they never read). Lower it, or pass confirm_cost=True. Nothing was billed.")
         if "limit" in patch:   # billed per row; scripts may page on purpose, so warn rather than change it
             print(f"dfs_safety: {endpoint}: limit={task.get('limit', 'default 100')} rows are billed per row; "
                   f"the guard's cap for this endpoint is {patch['limit']}.", file=sys.stderr)
@@ -110,6 +120,17 @@ def rest_guard(endpoint, payload, confirm_cost=False, allow_repeat=False, now=No
     return body
 
 
+def nudge_queue(endpoint):
+    """Live SERP and AI-answer calls cost about 3x the Standard queue; say so once a run makes several."""
+    fam = next((q for q in QUEUEABLE if q in endpoint), None)
+    if not fam:
+        return
+    _live_counts[fam] = _live_counts.get(fam, 0) + 1
+    if _live_counts[fam] == QUEUE_NUDGE_AT:
+        print(f"dfs_safety: {QUEUE_NUDGE_AT} live {fam} calls this run. If the results aren't needed this minute, "
+              "dfs_safety.queue() runs them on the Standard queue for about a third of the price.", file=sys.stderr)
+
+
 def call(path, payload=None, timeout=60, source=None, confirm_cost=False, allow_repeat=False):
     """POST (or GET when payload is None) a /v3 path or full URL; billed calls are logged.
 
@@ -124,6 +145,7 @@ def call(path, payload=None, timeout=60, source=None, confirm_cost=False, allow_
     endpoint = url.split("/v3/", 1)[-1]
     if payload is not None:
         payload = rest_guard(endpoint, payload, confirm_cost, allow_repeat)
+        nudge_queue(endpoint)
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode() if payload is not None else None,

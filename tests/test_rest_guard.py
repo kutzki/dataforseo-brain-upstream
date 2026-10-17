@@ -105,3 +105,18 @@ def test_task_get_cost_echo_is_not_logged_or_counted(api):
 def test_big_limit_warns_but_is_sent_unchanged(api, capsys):
     dfs_safety.call("/v3/dataforseo_labs/google/ranked_keywords/live", [{"target": "a.com", "limit": 500}])
     assert api["calls"][0][1][0]["limit"] == 500 and "billed per row" in capsys.readouterr().err
+
+
+def test_exploration_over_100_rows_needs_confirmation(api):
+    task = [{"keywords": ["salve"], "limit": 500, "location_code": 2840}]
+    with pytest.raises(dfs_safety.Blocked, match="exploration"):
+        dfs_safety.call("/v3/dataforseo_labs/google/keyword_ideas/live", task)
+    dfs_safety.call("/v3/dataforseo_labs/google/keyword_ideas/live", task, confirm_cost=True)
+    assert len(api["calls"]) == 1
+
+
+def test_queue_nudge_after_five_live_serps(api, capsys, monkeypatch):
+    monkeypatch.setattr(dfs_safety, "_live_counts", {})
+    for i in range(5):
+        dfs_safety.call(SERP, [{"keyword": f"k{i}", "location_code": 2840, "depth": 10}])
+    assert "Standard queue" in capsys.readouterr().err
