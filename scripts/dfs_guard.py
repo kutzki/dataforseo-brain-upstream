@@ -166,8 +166,30 @@ def target_kind_problem(ep, p):
     return None
 
 
+LABS_LANGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "labs_locations.json")
+
+
+def labs_languages(p):
+    """Languages Labs supports for the call's location, from the free locations list (None if unknown)."""
+    try:
+        with open(LABS_LANGS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    code = p.get("location_code")
+    if code is None and p.get("location_name"):
+        code = data["by_name"].get(str(p["location_name"]).lower())
+    return data["by_code"].get(str(code)) if code is not None else None
+
+
 def param_gotcha(ep, p):
     """Parameter traps found in past runs; each one failed or returned nothing."""
+    lang = p.get("language_code")
+    if matches(ep, "dataforseo_labs") and lang and "amazon" not in ep:
+        langs = labs_languages(p)
+        if langs and lang not in langs:
+            return (f"Labs has no `{lang}` data for this location; it supports {', '.join(langs)} there "
+                    "(e.g. Israel: he/ar, Denmark: da). Use one of those, or Google Ads volume, which takes no language.")
     israel = p.get("location_code") == 2376 or "israel" in str(p.get("location_name") or "").lower()
     if matches(ep, "google_ads") and israel and (p.get("language_code") or p.get("language_name")):
         return "Google Ads volume for Israel rejects a language; omit language_code/language_name for location 2376."
@@ -234,7 +256,10 @@ def base_estimate(ep, p):
     if matches(ep, "serp_youtube_organic", "serp/youtube/organic"):
         return 0.002 * max(1, math.ceil((num(p.get("block_depth"), 20) or 20) / 20))   # billed per 20 blocks
     if matches(ep, "serp_organic", "serp/", "serp_"):
-        return serp_live_cost(math.ceil((num(p.get("depth"), 10) or 10) / 10))
+        pages = math.ceil((num(p.get("depth"), 10) or 10) / 10)
+        if "task_post" in ep:   # Standard queue, measured 10-12: depth 30 = $0.0015, +$0.0006 with async AI Overview
+            return 0.0006 + 0.00045 * (pages - 1) + (0.0006 if is_true(p.get("load_async_ai_overview")) else 0)
+        return serp_live_cost(pages)
     if matches(ep, "whois"):
         return 0.12 + 0.0012 * limit          # default 100 rows: $0.24, double the request fee
     if matches(ep, "historical_bulk_traffic_estimation", "domain_metrics_by_categories"):
@@ -372,7 +397,7 @@ def check(tool, inp, session, now, log):
             age = now - rec.get("t", 0)
             if age < REPEAT_DENY_S:
                 return "deny", (f"Identical {ep} call already made {int(age // 60)} min ago (session {rec.get('session', '?')[:8]}). "
-                                "Reuse that result instead of paying again.")
+                                "Reuse that result instead of paying again; for more rows, page with `offset`.")
             if age < REPEAT_ASK_S:
                 return "ask", f"Identical {ep} call was made {age / 3600:.1f} h ago. Approve only if fresh data is needed.", patch
             break

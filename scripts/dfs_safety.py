@@ -37,7 +37,7 @@ class OutOfBalance(RuntimeError):
 
 
 REPEAT_BLOCK_S = 3600
-EXPLORE_ENDPOINTS = ("keyword_ideas", "keyword_suggestions", "related_keywords")
+EXPLORE_ENDPOINTS = ("keyword_ideas", "keyword_suggestions", "related_keywords", "ranked_keywords")
 EXPLORE_MAX_ROWS = 100
 QUEUEABLE = ("serp/google/organic/live", "serp/google/ai_mode/live", "llm_scraper/live")
 QUEUE_NUDGE_AT = 5
@@ -100,7 +100,7 @@ def rest_guard(endpoint, payload, confirm_cost=False, allow_repeat=False, now=No
             task = dict(task, depth=patch["depth"])   # API default is 100 results = 10 billed pages
         if (g.matches(endpoint, *EXPLORE_ENDPOINTS) and (g.num(task.get("limit"), 100) or 100) > EXPLORE_MAX_ROWS
                 and not confirm_cost):
-            raise Blocked(f"{endpoint}: limit={task.get('limit')} on an exploration endpoint bills every row "
+            raise Blocked(f"{endpoint}: limit={task.get('limit')} on a list endpoint bills every row "
                           f"($0.00012 each); {EXPLORE_MAX_ROWS} is plenty to find ideas (Sept and Oct runs paid for "
                           "340-500 rows they never read). Lower it, or pass confirm_cost=True. Nothing was billed.")
         if "limit" in patch:   # billed per row; scripts may page on purpose, so warn rather than change it

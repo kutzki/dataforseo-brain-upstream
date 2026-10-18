@@ -50,3 +50,15 @@ def test_duplicate_tags_type_is_checked():
     inp = {"path": "/v3/on_page/duplicate_tags", "data": [{"id": "x", "type": "duplicate_h1"}]}
     d, reason, _ = decide("api_request", inp)
     assert d == "deny" and "duplicate_title" in reason
+
+
+def test_labs_language_not_available_for_location_is_denied():
+    d, reason, _ = decide("mcp__x__dataforseo_labs_google_keyword_overview",
+                          {"keywords": ["a"], "location_code": 2376, "language_code": "en"})
+    assert d == "deny" and "he" in reason
+
+
+def test_queued_serp_estimate_is_the_queue_price():
+    import dfs_guard as g
+    est = g.estimate("api:serp/google/organic/task_post", {"depth": 30, "load_async_ai_overview": True})
+    assert abs(est - 0.0021) < 1e-9
