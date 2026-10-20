@@ -25,7 +25,7 @@ deprecation notes, and confidence.
 ## Throughput and retention
 | Item | Current value | URL | Retrieved | Confidence |
 |---|---|---|---:|---|
-| Rate limit | 2000 API calls per minute | https://docs.dataforseo.com/v3/appendix/errors/ | 2026-06-26 | high |
+| Rate limit | 10,000 API calls per minute (default since 2026-10-19; was 2,000) | https://dataforseo.com/update/api-rate-limit-10000-requests-per-minute | 2026-10-20 | high |
 | Simultaneous requests | 30 | https://docs.dataforseo.com/v3/appendix/errors/ | 2026-06-26 | high |
 | Tasks per POST array | up to 100 (1 for Live) | https://docs.dataforseo.com/v3/appendix/errors/ | 2026-06-26 | high |
 | Live timeout | 120 seconds | https://docs.dataforseo.com/v3/appendix/errors/ | 2026-06-26 | high |

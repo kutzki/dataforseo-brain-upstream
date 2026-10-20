@@ -18,7 +18,7 @@ Folder hubs (created separately, link targets): `index`, `concepts/_index`, `pla
 | cap-platform-architecture | v3 API shape: base URL, `/v3/{module}/{function}`, the 12-module map, request/response envelope (tasks[]/result[]/cost/status). MASTER HUB - most notes link here. |
 | cap-task-vs-live-execution | POST-task → tasks_ready → task_get (queue) vs Live (synchronous); latency/retry/idempotency; when each is forced. HUB. |
 | cap-queue-priority-cost-model | Priority 1 vs 2, per-result vs per-request billing, balance/credits, the `cost` field, $50 min deposit. HUB. |
-| cap-rate-limits-throughput | 2000 calls/min, 30 simultaneous, ≤100 tasks/POST, 120s live timeout, 429/40202 handling, batching. |
+| cap-rate-limits-throughput | 10,000 calls/min (since 2026-10-19), 30 simultaneous, ≤100 tasks/POST, 120s live timeout, 429/40202 handling, batching. |
 | cap-status-error-codes | 20000 OK / 20100 Task Created / 40xxx client / 50xxx server; task-level vs HTTP-level; retryable set. |
 | cap-authentication-security | HTTP Basic auth, base64(login:password), API password ≠ account password, credential hygiene. |
 | cap-sandbox-testing | sandbox.dataforseo.com free dummy-data endpoints; validate request shape at $0; CI patterns. |

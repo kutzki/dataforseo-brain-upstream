@@ -97,7 +97,7 @@
       "confidence": "high",
       "claims": [
         "20000 Ok / 20100 Task Created; 40xxx client and 50xxx server codes",
-        "Rate limit is 2000 calls/min, 30 simultaneous, <=100 tasks/POST, 120s live timeout",
+        "Rate limit is 10000 calls/min (default since 2026-10-19; was 2000), 30 simultaneous, <=100 tasks/POST, 120s live timeout",
         "The docs still describe 40204 as 'access denied ... activate your subscription' for Backlinks. This text is stale post-2026-07-01: a live backlinks/summary call on 2026-09-16 returned status_code 20000 on a pay-as-you-go account with no subscription."
       ]
     },
