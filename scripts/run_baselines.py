@@ -207,8 +207,8 @@ def spec_check(vault):
     if ours and sha.startswith(ours):
         return [f"\nOpenAPI spec: current (commit {ours}).\n"], False
     return [f"\n**DataForSEO updated its OpenAPI spec** (commit {sha[:12]}, {date}; the vault has {ours or 'none'}). "
-            "Re-download it to `.raw/sources/dataforseo-openapi/`, update PROVENANCE.json, and re-run the lint: "
-            "endpoint and parameter checks still validate against the old copy.\n"], True
+            "Run `python scripts/refresh_spec.py` (free): it archives the old copy, updates PROVENANCE.json and lists "
+            "the endpoint, parameter and schema changes to record in the changelog note.\n"], True
 
 
 UPDATES_API = "https://dataforseo.com/wp-json/wp/v2/update?per_page=20&_fields=date,title,link"
