@@ -9,6 +9,7 @@ Free endpoints used (verified $0 in the account price table, 2026-09-17):
   GET /v3/appendix/user_data
   GET /v3/ai_optimization/llm_mentions/locations_and_languages
 """
+import re
 import base64, hashlib, json, os, sys, time, urllib.error, urllib.request
 
 BASE = "https://api.dataforseo.com"
@@ -118,6 +119,22 @@ def rest_guard(endpoint, payload, confirm_cost=False, allow_repeat=False, now=No
         raise Blocked(f"This run has spent ${_run_spent:.3f}; this call (~${est:.3f}) would pass the run cap "
                       f"${run_cap():.2f} (env DFS_RUN_CAP). Nothing was billed.")
     return body
+
+
+def serp_host(item):
+    """The real site of a SERP result, even when Google hides it behind a google.com/goto redirect.
+
+    Since late October 2026 Google throttles its GoTo redirects, so Live and High-priority SERPs leave about half the
+    organic results as url=https://google.com/goto?url=..., domain=google.com (DataForSEO update 2026-11-02; measured
+    6 of 9 on a live SERP). The breadcrumb still names the site ("https://www.brevo.com › Blog"). Returns the host
+    without "www.", or "" when there's nothing to go on."""
+    url, domain = item.get("url") or "", (item.get("domain") or "").lower()
+    if "google.com/goto" in url or domain in ("google.com", "www.google.com"):
+        crumb = (item.get("breadcrumb") or "").split("›")[0].strip()
+        domain = re.sub(r"^https?://", "", crumb).split("/")[0].strip().lower() if crumb else ""
+    elif not domain:
+        domain = re.sub(r"^https?://", "", url).split("/")[0].lower()
+    return domain[4:] if domain.startswith("www.") else domain
 
 
 def nudge_queue(endpoint):

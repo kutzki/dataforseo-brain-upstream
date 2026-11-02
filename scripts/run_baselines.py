@@ -64,8 +64,9 @@ def score_rank(client, keyword, data):
     """Where the client's own domain ranks for one keyword (organic, top RANK_DEPTH), or None."""
     items = (((data.get("tasks") or [{}])[0].get("result") or [{}])[0].get("items")) or []
     own = client["domains"][0]
+    # serp_host, not the url: live SERPs hide about half the results behind google.com/goto (2026-11-02).
     hit = next((i for i in items if i.get("type") == "organic"
-                and (_host(i.get("url")) == own or _host(i.get("url")).endswith("." + own))), None)
+                and (dfs_safety.serp_host(i) == own or dfs_safety.serp_host(i).endswith("." + own))), None)
     return {"keyword": keyword, "position": hit.get("rank_group") if hit else None,
             "url": hit.get("url") if hit else None, "cost": data.get("cost") or 0}
 
