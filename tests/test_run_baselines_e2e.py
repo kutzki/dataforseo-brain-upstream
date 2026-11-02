@@ -15,7 +15,7 @@ CLIENT = {"name": "Acme", "location_code": 2840, "language_code": "en", "brand":
           "domains": ["acme.example", "rival.example"], "probes": ["Best widget firm?"], "rank_checks": ["widget firm"]}
 
 
-def fake_post(payload, url=run_baselines.URL):
+def fake_post(payload, url=run_baselines.URL, allow_repeat=False):
     if url == run_baselines.URL:   # LLM Mentions multi_target_metrics
         items = [{"key": d, "total": {"mentions": 5, "ai_search_volume": 50}} for d in CLIENT["domains"]]
         return {"status_code": 20000, "cost": 0.102, "tasks": [{"status_code": 20000, "result": [{"items": items}]}]}

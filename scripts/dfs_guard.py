@@ -59,7 +59,12 @@ def bare(tool):
 def endpoint_of(tool, inp):
     name = bare(tool)
     if name == "api_request":
-        return "api:" + str(inp.get("path", "")).strip("/").replace("/v3/", "").replace("v3/", "")
+        # DataForSEO MCP 3.x accepts `path` or a full `url`, and `.ai` endpoints (2026-11-01: a url-only call
+        # resolved to "api:" and skipped every cap and price rule).
+        raw = str(inp.get("path") or inp.get("url") or "")
+        raw = re.sub(r"^[a-z]+://[^/]+", "", raw, flags=re.I).split("?")[0].split("#")[0]
+        raw = raw.strip("/").replace("/v3/", "").replace("v3/", "")
+        return "api:" + re.sub(r"\.ai$", "", raw)
     return name
 
 

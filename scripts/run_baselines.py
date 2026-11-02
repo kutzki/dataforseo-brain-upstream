@@ -22,8 +22,8 @@ RANK_COST = 0.002 + 0.0015 * (RANK_DEPTH // 10 - 1)   # extra pages bill $0.0015
 DEFAULT_VAULT = pathlib.Path(os.environ.get("DFS_BRAIN_VAULT") or pathlib.Path.home() / "Documents" / "DataForSEO Brain" / "vault")
 
 
-def post(payload, url=URL):
-    return dfs_safety.call(url, payload, timeout=180)   # logs the exact cost to the vault call log
+def post(payload, url=URL, allow_repeat=False):
+    return dfs_safety.call(url, payload, timeout=180, allow_repeat=allow_repeat)   # logs the exact cost to the vault call log
 
 
 def run_set(client):
@@ -67,20 +67,51 @@ def score_rank(client, keyword, data):
     # serp_host, not the url: live SERPs hide about half the results behind google.com/goto (2026-11-02).
     hit = next((i for i in items if i.get("type") == "organic"
                 and (dfs_safety.serp_host(i) == own or dfs_safety.serp_host(i).endswith("." + own))), None)
+    serp = [dfs_safety.serp_host(i) for i in items if i.get("type") == "organic"]
     return {"keyword": keyword, "position": hit.get("rank_group") if hit else None,
-            "url": hit.get("url") if hit else None, "cost": data.get("cost") or 0}
+            "url": hit.get("url") if hit else None, "cost": data.get("cost") or 0, "serp": [s for s in serp if s]}
 
 
-def run_ranks(client):
+POISON_OVERLAP = 0.5   # DataForSEO's definition: under half the usual sites anywhere on the page
+
+
+def serp_overlap(usual, now):
+    """Share of the sites that usually rank (last trusted reading's top 10) found anywhere in this reading."""
+    usual = [s for s in usual[:10] if s]
+    return sum(1 for s in usual if s in set(now)) / len(usual) if usual else None
+
+
+def run_ranks(client, history=None):
+    """Rank checks with a poisoned-SERP guard.
+
+    Since 2026-09-26 Google serves bots 'poisoned' SERPs: normal-looking pages with most organic results swapped
+    (20-30% of scraped SERPs per DataForSEO's CTO, blog 2026-10-23). A reading that keeps under half of the
+    keyword's usual sites is re-requested once; if it still looks poisoned the row is marked unconfirmed and the
+    trusted history isn't overwritten. `history` maps keyword -> last trusted top-10 sites (updated in place)."""
+    history = {} if history is None else history
     rows = []
     for kw in client.get("rank_checks", []):
-        data = post(rank_payload(client, kw), RANK_URL)
-        task = (data.get("tasks") or [{}])[0]
-        if data.get("status_code") != 20000 or task.get("status_code") != 20000:
-            rows.append({"keyword": kw, "error": f"{task.get('status_code')} {task.get('status_message')}",
-                         "cost": data.get("cost") or 0})
-            continue
-        rows.append(score_rank(client, kw, data))
+        row = None
+        for attempt in (0, 1):
+            data = post(rank_payload(client, kw), RANK_URL, allow_repeat=attempt > 0)
+            task = (data.get("tasks") or [{}])[0]
+            if data.get("status_code") != 20000 or task.get("status_code") != 20000:
+                row = {"keyword": kw, "error": f"{task.get('status_code')} {task.get('status_message')}",
+                       "cost": data.get("cost") or 0}
+                break
+            got = score_rank(client, kw, data)
+            got["cost"] += row["cost"] if row else 0
+            got["overlap"] = serp_overlap(history.get(kw, []), got["serp"])
+            row = got
+            if got["overlap"] is None or got["overlap"] >= POISON_OVERLAP:
+                break
+        if "error" not in row:
+            if row["overlap"] is not None and row["overlap"] < POISON_OVERLAP:
+                row["unconfirmed"] = (f"SERP looked poisoned twice ({row['overlap']:.0%} of the usual sites); "
+                                      "confirm in Search Console or the next reading")
+            else:
+                history[kw] = row["serp"][:10]
+        rows.append(row)
     return rows
 
 
@@ -215,10 +246,24 @@ def spec_check(vault):
 UPDATES_API = "https://dataforseo.com/wp-json/wp/v2/update?per_page=20&_fields=date,title,link"
 
 
-def changelog_check(vault):
+BLOG_API = "https://dataforseo.com/wp-json/wp/v2/posts?per_page=20&_fields=date,title,link"
+# Blog posts that change how data should be read (the 2026-10-23 poisoned-SERP post never reached the update feed).
+BLOG_RELEVANT = re.compile(r"(?i)\b(serp|google|api|data|poison|outage|incident|price|pricing|deprecat|retir|limit|change)")
+
+
+def blog_check(vault):
+    """Free: DataForSEO blog posts about data quality, API or pricing changes posted since the changelog note's
+    Checked date and not linked in it. Same contract as changelog_check."""
+    lines, attention = changelog_check(vault, api=BLOG_API, kind="blog post(s) about data or the API",
+                                       keep=lambda title: bool(BLOG_RELEVANT.search(title)))
+    return lines, attention
+
+
+def changelog_check(vault, api=None, kind="product update(s)", keep=None):
     """Free: DataForSEO product updates (retirements, price and parameter changes) posted after the
     changelog note was last checked. Returns (report lines, needs_attention); network trouble is never fatal."""
     import urllib.request
+    api = api or UPDATES_API
     note = pathlib.Path(vault) / "wiki" / "sources" / "dfs-changelog.md"
     if not note.exists():
         return [], False
@@ -228,16 +273,17 @@ def changelog_check(vault):
         return [], False
     checked = m.group(1)
     try:
-        req = urllib.request.Request(UPDATES_API, headers={"User-Agent": "Mozilla/5.0 (dataforseo-brain)"})
+        req = urllib.request.Request(api, headers={"User-Agent": "Mozilla/5.0 (dataforseo-brain)"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             posts = json.load(resp)
     except Exception as exc:   # never lose the paid results over a free check
-        return [f"\nDataForSEO changelog check skipped: {exc}\n"], False
+        return [f"\nDataForSEO {kind} check skipped: {exc}\n"], False
     # same-day posts count too unless already recorded: a post later on the checked day was missed by ">"
-    new = [p for p in posts if p.get("date", "")[:10] >= checked and p.get("link", "") not in text]
+    new = [p for p in posts if p.get("date", "")[:10] >= checked and p.get("link", "") not in text
+           and (keep is None or keep(re.sub(r"<[^>]+>", "", (p.get("title") or {}).get("rendered", ""))))]
     if not new:
-        return [f"\nDataForSEO changelog: nothing new since {checked}.\n"], False
-    lines = [f"\n**DataForSEO posted {len(new)} product update(s) since the changelog note was checked ({checked}):**\n"]
+        return [f"\nDataForSEO {kind}: nothing new since {checked}.\n"], False
+    lines = [f"\n**DataForSEO posted {len(new)} {kind} since the changelog note was checked ({checked}):**\n"]
     for p in new:
         title = re.sub(r"<[^>]+>", "", (p.get("title") or {}).get("rendered", "")).strip()
         lines.append(f"- {p['date'][:10]}: [{title}]({p.get('link', '')})")
@@ -364,7 +410,11 @@ def main():
                                f"{yes(p['client_cited'])} | {', '.join(p['cited']) or '-'} |")
             print(f"  AI Mode: {sum(p.get('client_named', False) for p in probes)}/{len(probes)} probes name the client")
         if c.get("rank_checks") and spent < args.max_spend:
-            ranks = run_ranks(c)
+            hist_path = args.vault / "_attachments" / "rank-serp-history.json"
+            all_hist = json.loads(hist_path.read_text(encoding="utf-8")) if hist_path.exists() else {}
+            hist = all_hist.setdefault(f"{c['name']}|{c.get('location_code', 2840)}", {})
+            ranks = run_ranks(c, hist)
+            hist_path.write_text(json.dumps(all_hist, indent=1), encoding="utf-8")
             spent += sum(r["cost"] for r in ranks)
             record["ranks"] = ranks
             summary.append(f"\n### Google rank (organic, top {RANK_DEPTH})\n")
@@ -374,7 +424,9 @@ def main():
                 if "error" in r:
                     summary.append(f"| {r['keyword']} | **error** {r['error']} | |")
                 else:
-                    summary.append(f"| {r['keyword']} | {r['position'] or f'not in top {RANK_DEPTH}'} | {r['url'] or '-'} |")
+                    pos = r['position'] or f'not in top {RANK_DEPTH}'
+                    pos = f"{pos} (unconfirmed: {r['unconfirmed']})" if r.get("unconfirmed") else pos
+                    summary.append(f"| {r['keyword']} | {pos} | {r['url'] or '-'} |")
                 print(f"  rank {r['keyword']!r}: {r.get('position') or r.get('error') or '-'}")
         lines.append(json.dumps(record))
 

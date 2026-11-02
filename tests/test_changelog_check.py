@@ -50,3 +50,11 @@ def test_same_day_post_counts_unless_recorded(monkeypatch, tmp_path):
     note.write_text(note.read_text(encoding="utf-8") + "\n- [x](https://dataforseo.com/update/x/)\n", encoding="utf-8")
     lines, alert = run_baselines.changelog_check(v)
     assert alert is False
+
+
+def test_blog_check_flags_data_posts_and_ignores_case_studies(monkeypatch, tmp_path):
+    posts(monkeypatch, ("2026-10-23", "Poisoned SERPs: What's Happening With Google Results"),
+          ("2026-10-28", "How We Helped Monetize Our Newest Auto Site & Co | Story"))
+    lines, alert = run_baselines.blog_check(vault(tmp_path))
+    text = "\n".join(lines)
+    assert alert is True and "Poisoned SERPs" in text and "Auto Site" not in text and "blog post" in text

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Free daily drift watch: DataForSEO's updates feed, its OpenAPI spec and the account price table.
+"""Free daily drift watch: DataForSEO's updates feed and blog, its OpenAPI spec and the account price table.
 
 Runs the same three free checks as run_baselines.py, without any paid call, so watching for new
 endpoints, retirements and price changes doesn't depend on a paid client run being scheduled.
@@ -26,7 +26,7 @@ FAIL_MARKERS = ("skipped", "failed")
 def run_checks(vault):
     """[(name, lines, needs_attention)] for the three free checks."""
     out = []
-    for name, fn in (("updates", rb.changelog_check), ("spec", rb.spec_check), ("prices", rb.price_check)):
+    for name, fn in (("updates", rb.changelog_check), ("blog", rb.blog_check), ("spec", rb.spec_check), ("prices", rb.price_check)):
         try:
             lines, attention = fn(vault)
         except Exception as exc:   # one broken check must not hide the others
